@@ -48,8 +48,10 @@ if __name__ == '__main__':
         poet = Model(model_file=args.model)
 
     poem = couplet(poet)#petrarchan(poet)
-    for line in poem:
-        print(' '.join(t['word'] for t in line[::-1]))
-    for line in poem:
-        print(' '.join(t['meter'] for t in line[::-1]))
+    if poem:
+        for line in poem:
+            print(' '.join(t['word'] for t in line[::-1]))
+        for line in poem:
+            print(' '.join(t['meter'] for t in line[::-1]))
+    import pdb;pdb.set_trace()
 

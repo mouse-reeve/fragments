@@ -1,6 +1,5 @@
 ''' read a corpus and create a markov model '''
 import argparse
-from collections import defaultdict
 import json
 import nltk
 import random
@@ -48,11 +47,26 @@ def create_token(word, phonemes):
         'syllables': len(meter),
     }
 
+def create_weighted_choices(optionset):
+    ''' now that we're done, let's make the structures easy to query
+    what we start with:
+      {fish: {'twenty': (<token>, 1), 'a': (<token>, 12), ...}, ...},
+    what we want:
+      {fish: {options: [<token>, <token>, ...], weights: [1, 12, ...], ...}
+      '''
+    clean = {}
+    for (key, values) in optionset.items():
+        unkeyed = values.values()
+        options = [i[0] for i in unkeyed]
+        weights = [i[1] for i in unkeyed]
+        clean[key] = {'options': options, 'weights': weights}
+    return clean
+
 class Model(object):
     ''' the markov chain, rhyming dict, and tokenset created from the corpus '''
-    tokens = []
-    markov = defaultdict(list)
-    rhymes = defaultdict(list)
+    tokens = {}
+    markov = {}
+    rhymes = {}
 
     def __init__(self, corpus_file=None, model_file=None):
         if corpus_file:
@@ -63,8 +77,8 @@ class Model(object):
             # load a saved model file
             model = json.load(open(model_file, 'r'))
             self.tokens = model['tokens']
-            self.markov = defaultdict(list, model['markov'])
-            self.rhymes = defaultdict(list, model['rhymes'])
+            self.markov = model['markov']
+            self.rhymes = model['rhymes']
 
 
     def parse(self, text):
@@ -92,15 +106,41 @@ class Model(object):
                 self.add_token(token, prev=prev)
             prev = token
 
+        # now that we're done, let's clean up the models
+        self.markov = create_weighted_choices(self.markov)
+        self.rhymes = create_weighted_choices(self.rhymes)
+        self.tokens = create_weighted_choices({'only': self.tokens})
+        self.tokens = self.tokens['only']
+
 
     def add_token(self, token, prev=None):
         ''' add the token to the various components of the model '''
-        self.tokens.append(token)
-        self.rhymes[token['rhyme']].append(token)
+        word = token['word']
+        rhyme = token['rhyme']
+
+        # increment token weights
+        if word not in self.tokens:
+            self.tokens[word] = [token, 0]
+        self.tokens[word][1] += 1
+
+        if rhyme not in self.rhymes:
+            self.rhymes[rhyme] = {}
+        if not word in self.rhymes[rhyme]:
+            self.rhymes[rhyme][word] = [token, 0]
+        self.rhymes[rhyme][word][1] += 1
+
         # create the backwards markov reference, word two -> word one
         # backwards makes it easier to search based on terminal rhymes
         if prev:
-            self.markov[token['word']].append(prev)
+            # an entry looks like a dict of tokens and weights
+            # 'fish': {'twenty': (<token>, 1), 'the': (<token>, 12), ...}
+
+            if not word in self.markov:
+                self.markov[word] = {}
+            if prev['word'] not in self.markov[word]:
+                self.markov[word][prev['word']] = [prev, 0]
+            # increment the weight
+            self.markov[word][prev['word']][1] += 1
 
 
     def save_model(self, filename='trained.model'):
@@ -110,7 +150,7 @@ class Model(object):
             'rhymes': self.rhymes,
             'tokens': self.tokens,
         }
-        json.dump(model_json, open(filename, 'w'), default=lambda x: x.__dict__)
+        json.dump(model_json, open(filename, 'w'))
 
 
     def get_line(self, foot='01', meter=5, rhyme_token=None):
@@ -137,24 +177,31 @@ class Model(object):
         line = line or []
 
         if start:
-            # we have a starting word so use the markov chain
-            options = self.markov[start['word']]
+            # we have a starting word so use the markov chain, this is the most
+            # common case. We use a weighted shuffle here.
+            try:
+                opts = self.markov[start['word']]
+            except KeyError:
+                # we just don't have a good next choice, sorry
+                return False
         elif rhyme_token:
             # we have a rhyme so use the rhyming dictionary
-            options = self.rhymes[rhyme_token['rhyme']]
+            opts = self.rhymes[rhyme_token['rhyme']]
         else:
             # try 'em all
-            options = self.tokens
-        options = [t for t in options \
+            opts = self.tokens
+
+        opts = weighted_shuffle(opts['options'], opts['weights'])
+
+        opts = [t for t in opts \
                 if suitable(t, meter_pattern, rhyme_token)]
 
-        if not len(options):
+        if not len(opts):
             # this start token isn't working, reject it
             return False
 
-        random.shuffle(options)
         # try each option until we find one that has children that work
-        for option in options:
+        for option in opts:
             proposed_meter = meter_pattern[:-1 * option['syllables']]
             proposed_line = line + [option]
             # I'm not passing the rhyme token because it only matters to the
@@ -166,6 +213,7 @@ class Model(object):
             )
             if isinstance(next_token, dict):
                 line.append(next_token)
+                break
             elif isinstance(next_token, list):
                 # if we get a list (ie, a line), that means we succeeded
                 return next_token
@@ -176,6 +224,31 @@ def suitable(option, meter_pattern, rhyme_token=None):
     ''' check if a word fits the meter and rhyme constraints '''
     return re.match(r'.*' + option['meter'] + '$', meter_pattern) and \
        check_rhyme(option, rhyme_token)
+
+
+def weighted_choice(weights):
+    ''' taken from:
+    nicky.vanforeest.com/probability/weightedRandomShuffling/weighted.html '''
+    rnd = random.random() * sum(weights)
+    for i, w in enumerate(weights):
+        rnd -= w
+        if rnd < 0:
+            return i
+
+def weighted_shuffle(options, weights):
+    ''' taken from:
+    nicky.vanforeest.com/probability/weightedRandomShuffling/weighted.html '''
+    weights = list(weights) # make a copy of weights
+    if len(options) != len(weights):
+        print("weighted_shuffle: Lenghts of lists don't match.")
+        return
+
+    r = [0]*len(options) # contains the random shuffle
+    for i in range(len(options)):
+        j = weighted_choice(weights)
+        r[i] = options[j]
+        weights[j] = 0
+    return r
 
 
 def check_rhyme(option, rhyme):
@@ -211,5 +284,3 @@ if __name__ == '__main__':
         sample_rhyme = poetry_model.get_line(rhyme_token=sample_line[0])
         if sample_rhyme:
             print(' '.join(t['word'] for t in sample_rhyme[::-1]))
-
-    import pdb;pdb.set_trace()
