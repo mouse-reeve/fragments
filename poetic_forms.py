@@ -22,8 +22,10 @@ def petrarchan(model):
     B = lines[-1][0]
     lines.append(model.get_line(rhyme_token=A))
     lines.append(model.get_line(rhyme_token=B))
+    B = lines[-1][0]
     lines.append(model.get_line(rhyme_token=B))
     lines.append(model.get_line(rhyme_token=A))
+    A = lines[0][0]
     lines.append(model.get_line())
     C = lines[-1][0]
     lines.append(model.get_line())
@@ -34,6 +36,19 @@ def petrarchan(model):
     lines.append(model.get_line(rhyme_token=D))
     lines.append(model.get_line(rhyme_token=E))
     return lines
+
+def print_poem(poem):
+    ''' helper function to print a poem '''
+    if not poem:
+        print('Poem error')
+        return
+
+    for line in poem:
+        try:
+            print(' '.join(t['word'] for t in line[::-1]))
+        except TypeError:
+            print('Line error')
+            break
 
 
 if __name__ == '__main__':
@@ -47,11 +62,7 @@ if __name__ == '__main__':
     elif args.model:
         poet = Model(model_file=args.model)
 
-    poem = couplet(poet)#petrarchan(poet)
-    if poem:
-        for line in poem:
-            print(' '.join(t['word'] for t in line[::-1]))
-        for line in poem:
-            print(' '.join(t['meter'] for t in line[::-1]))
+    #print_poem(couplet(poet))
+    print_poem(petrarchan(poet))
     import pdb;pdb.set_trace()
 
