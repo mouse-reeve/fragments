@@ -73,9 +73,20 @@ class Model(object):
             # assuming the file is a list of sentences and already sanitized
             for line in open(corpus_file, 'r'):
                 self.parse(line)
+
             # now that we're done, let's clean up the models
+            # rhymes with only one entry won't work
+            actual_rhymes = {}
+            for rhyme in self.rhymes:
+                if len(self.rhymes[rhyme]) > 1:
+                    actual_options = [rhyme_clean(a) for a \
+                            in self.rhymes[rhyme].keys()]
+                    if len(set(actual_options)) > 1:
+                        actual_rhymes[rhyme] = self.rhymes[rhyme]
+
+            # change the structure so they can be queries
             self.markov = create_weighted_choices(self.markov)
-            self.rhymes = create_weighted_choices(self.rhymes)
+            self.rhymes = create_weighted_choices(actual_rhymes)
             self.tokens = create_weighted_choices({'only': self.tokens})
             self.tokens = self.tokens['only']
         if model_file:
@@ -157,7 +168,7 @@ class Model(object):
         json.dump(model_json, open(filename, 'w'))
 
 
-    def get_line(self, foot='01', meter=5, rhyme_token=None):
+    def get_line(self, foot='01', meter=5, rhyme_token=None, rhymable=False):
         ''' depth first search through the markov model given the meter and
         rhyme constraints. The presets are iambic pentameter:
             foot='01' -> unstressed stressed (iamb),
@@ -168,17 +179,19 @@ class Model(object):
         # "life and death" to the end of the line, it would be 0101010
         meter_pattern = foot * meter
 
-        # TODO: this could return False if it selects a bad start token
-        line = self.get_next(meter_pattern, rhyme_token=rhyme_token)
+        line = self.get_next(meter_pattern, rhyme_token=rhyme_token,
+                             rhymable=rhymable)
         return line
 
-    def get_next(self, meter_pattern, line=None, start=None, rhyme_token=None):
+    def get_next(self, meter_pattern, line=None,
+                 rhyme_token=None, rhymable=False):
         ''' try options recursively until one fits the constraints'''
         # happy ending conditions: the meter pattern is blank, ie used up
         if meter_pattern == '':
             return line
 
         line = line or []
+        start = line[-1] if len(line) else None
 
         if start:
             # we have a starting word so use the markov chain, this is the most
@@ -194,6 +207,20 @@ class Model(object):
         else:
             # try 'em all
             opts = self.tokens
+
+        # this shouldn't be set to true when there's a rhyme token or if it's
+        # not the terminal word in the line
+        if rhymable:
+            okay = []
+            # this is the case where the terminal word must have a workable
+            # rhyme because the poet plans to make the next rhyme match it
+            for (token, weight) in zip(opts['options'], opts['weights']):
+                if token['rhyme'] in self.rhymes:
+                    okay.append((token, weight))
+            opts = {
+                'options': [t[0] for t in okay],
+                'weights': [t[1] for t in okay]
+            }
 
         opts = weighted_shuffle(opts['options'], opts['weights'])
 
@@ -213,7 +240,6 @@ class Model(object):
             next_token = self.get_next(
                 proposed_meter,
                 line=proposed_line,
-                start=option
             )
             if isinstance(next_token, dict):
                 line.append(next_token)

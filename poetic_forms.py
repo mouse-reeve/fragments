@@ -18,22 +18,27 @@ def couplet(model):
 def shakespearian(model):
     ''' a shakespearian sonnet '''
     lines = []
+    for _ in range(3):
+        lines.append(model.get_line(rhymable=True))
+        try:
+            A = lines[-1][0]
+        except TypeError:
+            return lines
+        lines.append(model.get_line(rhymable=True))
+        try:
+            B = lines[-1][0]
+        except TypeError:
+            return lines
+        lines.append(model.get_line(rhyme_token=A))
+        lines.append(model.get_line(rhyme_token=B))
+
+    lines.append(model.get_line(rhymable=True))
     try:
-        for _ in range(3):
-            lines.append(model.get_line())
-            A = lines[0][0]
-            lines.append(model.get_line())
-            B = lines[-1][0]
-            lines.append(model.get_line(rhyme_token=A))
-            A = lines[0][0]
-            lines.append(model.get_line(rhyme_token=B))
-            B = lines[-1][0]
-        lines.append(model.get_line())
         A = lines[-1][0]
         lines.append(model.get_line(rhyme_token=A))
-
     except TypeError:
-        return False
+        pass
+
     return lines
 
 
@@ -115,6 +120,7 @@ if __name__ == '__main__':
         poet = Model(model_file=args.model)
 
     #print_poem(couplet(poet))
-    print_poem(petrarchan(poet))
+    #print_poem(petrarchan(poet))
+    print_poem(shakespearian(poet))
     import pdb;pdb.set_trace()
 
