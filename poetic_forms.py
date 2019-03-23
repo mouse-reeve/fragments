@@ -22,6 +22,7 @@ def petrarchan(model):
         lines.append(model.get_line())
         B = lines[-1][0]
         lines.append(model.get_line(rhyme_token=A))
+        A = lines[0][0]
         lines.append(model.get_line(rhyme_token=B))
         B = lines[-1][0]
         lines.append(model.get_line(rhyme_token=B))

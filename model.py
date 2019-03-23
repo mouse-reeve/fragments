@@ -89,23 +89,28 @@ class Model(object):
     def parse(self, text):
         ''' tokenize text and build a markov chain and rhyming dictionary '''
         prev = None
-        for word in nltk.word_tokenize(text):
+        # nltk.word_tokenize is too clever, it will break up "it's" into
+        # ["it" "'s"] which is great for POS tagging but confuses things here
+        for word in text.split(' '):
             # arguably I should try to preserve capitals in some cases (ie,
             # a location name) and not in others (the start of a sentence)
             word = word.lower()
+            word = word.strip()
+            sanitized = rhyme_clean(word)
 
-            # TODO: this should guess the pronunciation instead, and handle
             # punctuation
-            if word not in cmudict:
+            if sanitized not in cmudict:
                 if not re.match(r'\w', word):
-                    # it's probably punctation
+                    # no letters -> skip it
                     continue
 
+                # TODO: this should guess the pronunciation instead, and handle
                 # it's an unknown word
                 word = 'beep'
+                sanitized = 'beep'
 
             # CMU gives us various alternate prounications of a word
-            phonemeset = cmudict[word]
+            phonemeset = cmudict[sanitized]
             for phonemes in phonemeset:
                 token = create_token(word, phonemes)
                 self.add_token(token, prev=prev)
@@ -249,13 +254,16 @@ def weighted_shuffle(options, weights):
         weights[j] = 0
     return r
 
+def rhyme_clean(word):
+    ''' remove any funny business for checking pronunciation/rhyme '''
+    return re.sub(r'\W', '', word)
 
 def check_rhyme(option, rhyme):
     ''' check if a word is a valid rhyme with a given word '''
     if not rhyme:
         # we don't care about rhyme
         return True
-    if option['word'] == rhyme['word']:
+    if rhyme_clean(option['word']) == rhyme_clean(rhyme['word']):
         # you can't rhyme a word with itself
         return False
     if option['rhyme'] == rhyme['rhyme']:
