@@ -4,13 +4,13 @@ from model import Model
 
 def couplet(model):
     ''' two rhyming lines '''
-    rh = none
+    rh = None
     lines = []
     for _ in range(2):
         lines.append(model.get_line(rhyme_token=rh))
         if not lines[-1]:
             print('failed')
-            return false
+            return False
         rh = lines[0][0]
     return lines
 
