@@ -4,13 +4,13 @@ from model import Model
 
 def couplet(model):
     ''' two rhyming lines '''
-    rh = None
+    rh = none
     lines = []
     for _ in range(2):
         lines.append(model.get_line(rhyme_token=rh))
         if not lines[-1]:
             print('failed')
-            return False
+            return false
         rh = lines[0][0]
     return lines
 
@@ -41,7 +41,23 @@ def petrarchan(model):
         return False
     return lines
 
-def print_poem(poem):
+
+def suessian(model):
+    ''' anapestic tetrameter with rhymes '''
+    rh = None
+    lines = []
+    for i in range(4):
+        lines.append(model.get_line(foot='010', meter=4, rhyme_token=rh))
+        if not lines[-1]:
+            print('failed')
+            return False
+        rh = lines[-1][0]
+        if i % 2:
+            rh = None
+    return lines
+
+
+def print_poem(poem, meter=False):
     ''' helper function to print a poem '''
     if not poem:
         print('Poem error')
@@ -50,6 +66,15 @@ def print_poem(poem):
     for line in poem:
         try:
             print(' '.join(t['word'] for t in line[::-1]))
+        except TypeError:
+            print('Line error')
+            break
+    if not meter:
+        return
+
+    for line in poem:
+        try:
+            print(''.join(t['meter'] for t in line[::-1]))
         except TypeError:
             print('Line error')
             break
