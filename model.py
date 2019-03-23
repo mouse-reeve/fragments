@@ -45,6 +45,7 @@ def create_token(word, phonemes):
         'rhyme': rhyme,
         'meter': meter,
         'phonemes': phonemes,
+        'syllables': len(meter),
     }
 
 class Model(object):
@@ -77,19 +78,30 @@ class Model(object):
             # TODO: this should guess the pronunciation instead, and handle
             # punctuation
             if word not in cmudict:
+                if not re.match(r'\w', word):
+                    # it's probably punctation
+                    continue
+
+                # it's an unknown word
                 word = 'beep'
 
             # CMU gives us various alternate prounications of a word
             phonemeset = cmudict[word]
             for phonemes in phonemeset:
                 token = create_token(word, phonemes)
-                self.tokens.append(token)
-                self.rhymes[token['rhyme']].append(token)
-                # create the backwards markov reference, word two -> word one
-                # backwards makes it easier to search based on terminal rhymes
-                if prev:
-                    self.markov[token['word']].append(prev)
+                self.add_token(token, prev=prev)
             prev = token
+
+
+    def add_token(self, token, prev=None):
+        ''' add the token to the various components of the model '''
+        self.tokens.append(token)
+        self.rhymes[token['rhyme']].append(token)
+        # create the backwards markov reference, word two -> word one
+        # backwards makes it easier to search based on terminal rhymes
+        if prev:
+            self.markov[token['word']].append(prev)
+
 
     def save_model(self, filename='trained.model'):
         ''' json dump the model into a file so we don't have to rebuild '''
@@ -143,11 +155,10 @@ class Model(object):
         random.shuffle(options)
         # try each option until we find one that has children that work
         for option in options:
-            # trim the end of the meter pattern to remove the word we're trying
-            proposed_meter = meter_pattern[:-1 * len(option['meter'])]
+            proposed_meter = meter_pattern[:-1 * option['syllables']]
             proposed_line = line + [option]
             # I'm not passing the rhyme token because it only matters to the
-            # first word which is the end of the line
+            # first word at the end of the line
             next_token = self.get_next(
                 proposed_meter,
                 line=proposed_line,
@@ -195,7 +206,10 @@ if __name__ == '__main__':
     print('model is ready')
 
     sample_line = poetry_model.get_line()
-    print(' '.join(t['word'] for t in sample_line[::-1]))
-    sample_rhyme = poetry_model.get_line(rhyme_token=sample_line[0])
-    if sample_rhyme:
-        print(' '.join(t['word'] for t in sample_rhyme[::-1]))
+    if sample_line:
+        print(' '.join(t['word'] for t in sample_line[::-1]))
+        sample_rhyme = poetry_model.get_line(rhyme_token=sample_line[0])
+        if sample_rhyme:
+            print(' '.join(t['word'] for t in sample_rhyme[::-1]))
+
+    import pdb;pdb.set_trace()
