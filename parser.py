@@ -79,11 +79,24 @@ def get_prev_word(start, meter=None, max_syllables=None, rhyme=None):
     for option in options:
         if (not meter or re.match(r'.*'+option.meter+'$', meter)) and \
            (not max_syllables or len(option.meter) <= max_syllables) and \
-           (not rhyme or (option.rhyme == rhyme.rhyme and option.word != rhyme.word)):
+           check_rhyme(option, rhyme):
             valid.append(option)
     if not len(valid):
         return False
     return random.choice(valid)
+
+def check_rhyme(option, rhyme):
+    ''' check if a word is a valid rhyme with a given word '''
+    if not rhyme:
+        # we don't care about rhyme
+        return True
+    if option.word == rhyme.word:
+        # you can't rhyme a word with itself
+        return False
+    if option.rhyme == rhyme.rhyme:
+        # and they have to have the same rhyme ending
+        return True
+    return False
 
 def get_line(foot='01', meter=5, rhyme=None):
     ''' write a line '''
@@ -110,7 +123,7 @@ def get_line(foot='01', meter=5, rhyme=None):
 
 def try_to_get_line(**kwargs):
     ''' retries get_line 20 times until it succeeds '''
-    for _ in range(200):
+    for _ in range(400):
         attempt = get_line(**kwargs)
         if attempt:
             return attempt
@@ -121,11 +134,10 @@ def couplet():
     lines = []
     for _ in range(2):
         lines.append(try_to_get_line(rhyme=rh))
-        try:
-            rh = lines[0][0]
-        except TypeError:
+        if not lines[-1]:
             print('failed')
             return False
+        rh = lines[0][0]
     for line in lines:
         print(' '.join([t.word for t in line[::-1]]))
     for line in lines:
