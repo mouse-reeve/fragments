@@ -73,6 +73,11 @@ class Model(object):
             # assuming the file is a list of sentences and already sanitized
             for line in open(corpus_file, 'r'):
                 self.parse(line)
+            # now that we're done, let's clean up the models
+            self.markov = create_weighted_choices(self.markov)
+            self.rhymes = create_weighted_choices(self.rhymes)
+            self.tokens = create_weighted_choices({'only': self.tokens})
+            self.tokens = self.tokens['only']
         if model_file:
             # load a saved model file
             model = json.load(open(model_file, 'r'))
@@ -105,12 +110,6 @@ class Model(object):
                 token = create_token(word, phonemes)
                 self.add_token(token, prev=prev)
             prev = token
-
-        # now that we're done, let's clean up the models
-        self.markov = create_weighted_choices(self.markov)
-        self.rhymes = create_weighted_choices(self.rhymes)
-        self.tokens = create_weighted_choices({'only': self.tokens})
-        self.tokens = self.tokens['only']
 
 
     def add_token(self, token, prev=None):

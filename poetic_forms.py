@@ -16,25 +16,28 @@ def couplet(model):
 
 def petrarchan(model):
     ''' a patrarchan sonnet '''
-    lines = [model.get_line()]
-    A = lines[0][0]
-    lines.append(model.get_line())
-    B = lines[-1][0]
-    lines.append(model.get_line(rhyme_token=A))
-    lines.append(model.get_line(rhyme_token=B))
-    B = lines[-1][0]
-    lines.append(model.get_line(rhyme_token=B))
-    lines.append(model.get_line(rhyme_token=A))
-    A = lines[0][0]
-    lines.append(model.get_line())
-    C = lines[-1][0]
-    lines.append(model.get_line())
-    D = lines[-1][0]
-    lines.append(model.get_line())
-    E = lines[-1][0]
-    lines.append(model.get_line(rhyme_token=C))
-    lines.append(model.get_line(rhyme_token=D))
-    lines.append(model.get_line(rhyme_token=E))
+    try:
+        lines = [model.get_line()]
+        A = lines[0][0]
+        lines.append(model.get_line())
+        B = lines[-1][0]
+        lines.append(model.get_line(rhyme_token=A))
+        lines.append(model.get_line(rhyme_token=B))
+        B = lines[-1][0]
+        lines.append(model.get_line(rhyme_token=B))
+        lines.append(model.get_line(rhyme_token=A))
+        A = lines[0][0]
+        lines.append(model.get_line())
+        C = lines[-1][0]
+        lines.append(model.get_line())
+        D = lines[-1][0]
+        lines.append(model.get_line())
+        E = lines[-1][0]
+        lines.append(model.get_line(rhyme_token=C))
+        lines.append(model.get_line(rhyme_token=D))
+        lines.append(model.get_line(rhyme_token=E))
+    except TypeError:
+        return False
     return lines
 
 def print_poem(poem):
