@@ -14,6 +14,29 @@ def couplet(model):
         rh = lines[0][0]
     return lines
 
+
+def shakespearian(model):
+    ''' a shakespearian sonnet '''
+    lines = []
+    try:
+        for _ in range(3):
+            lines.append(model.get_line())
+            A = lines[0][0]
+            lines.append(model.get_line())
+            B = lines[-1][0]
+            lines.append(model.get_line(rhyme_token=A))
+            A = lines[0][0]
+            lines.append(model.get_line(rhyme_token=B))
+            B = lines[-1][0]
+        lines.append(model.get_line())
+        A = lines[-1][0]
+        lines.append(model.get_line(rhyme_token=A))
+
+    except TypeError:
+        return False
+    return lines
+
+
 def petrarchan(model):
     ''' a patrarchan sonnet '''
     try:
