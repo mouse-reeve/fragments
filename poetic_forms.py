@@ -42,7 +42,7 @@ def petrarchan(model):
     return lines
 
 
-def suessian(model):
+def seussian(model):
     ''' anapestic tetrameter with rhymes '''
     rh = None
     lines = []
